@@ -306,6 +306,10 @@ def read_huf(read_path):
 
         code = bin(convert_to_int(char[2:]))[2:]
 
+        while len(code) < char[1]:
+
+            code = "0" + code
+
         chars[chr(char[0])] = code
 
     spare = info[5]
@@ -317,5 +321,7 @@ def read_huf(read_path):
         encoded = "0" + encoded
 
     encoded = encoded[:-spare]
+
+    print(chars, "\n",encoded)
 
     return retrieve_original(encoded, chars)
