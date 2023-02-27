@@ -24,13 +24,23 @@ Just a massive string of binary, finishing with 0 bits to pad out last byte
 
 '''
 
-def EncodingError(Exception):
+class EncodingError(Exception):
 
     pass
 
-def DecodingError(Exception):
+class DecodingError(Exception):
 
     pass
+
+def convert_to_int(values):
+
+    total = 0
+
+    for x in range(len(values), 0, -1):
+
+        total += values[-x] * 256**(x-1)
+
+    return total
 
 def divide_into_bytes(value, length=None, padding=0):
 
@@ -195,7 +205,7 @@ def write_file(name, compressed):
 
     l = len(compressed[1])
     if l >= 256:
-        raise EncodingError()
+        raise EncodingError("Tree too long, must be fewer than 256 elements")
     header += bytes([l])
 
     l = len(compressed[0])
@@ -227,24 +237,85 @@ def write_file(name, compressed):
         out.write(header)
         out.write(body)
 
-def read_file(inp):
+    return f"Written to {write_path.rsplit('/')[0]}"
 
-    if inp[-4:] != ".huf":
+def convert_file(inp):
 
-        raise DecodingError
+    types = {".huf": from_huf,
+             ".txt": from_txt}
 
-    read_path = os.path.join(os.getcwd(), inp)
+    for extension in types:
+        
+        if inp.endswith(extension) and \
+            os.path.isfile(os.path.join(os.getcwd(), inp)):
 
-    if not os.path.exists(read_path):
+            return types[extension](os.path.join(os.getcwd(), inp))
 
-        raise DecodingError
+    raise DecodingError("Invalid file type to convert")
+
+def from_txt(read_path, name=None):
+
+    with open(read_path) as inp:
+
+        text = inp.read().rstrip()
+    
+    compressed = get_compressed(text)
+    
+    if name is None:
+
+        name = read_path.rsplit("/")[0]
+
+    return write_file(name, compressed)
+
+def from_huf(read_path):
+
+    text = read_huf(read_path)
+
+    with open(read_path[:-3]+"txt", "w") as out:
+
+        out.write(text)
+    
+    return text
+
+def read_huf(read_path):
 
     with open(read_path, "rb") as inp:
 
         value = int.from_bytes(inp.read(), "big")
-        contents = 
+        
+    size = (value.bit_length() + 7) // 8
 
+    content = divide_into_bytes(value, size)
 
+    if content[:4] != [72, 85, 70, 70]:
 
-#write_file("testing", get_compressed("THis IS a test Of Special characTerS!1!1"))
-print(read_file("test.huf"))
+        raise DecodingError("Supplied .huf had incorrect signature")
+
+    header_length = convert_to_int(content[4:6])
+
+    info = content[6:12]
+    dictionary = content[12:header_length]
+    body = content[header_length:]
+
+    print(info, dictionary, body)
+
+    chars = {}
+    for index in range(len(dictionary)//4):
+
+        char = dictionary[index*4:index*4+4]
+
+        code = bin(convert_to_int(char[2:]))[2:]
+
+        chars[chr(char[0])] = code
+
+    spare = info[5]
+
+    encoded = bin(convert_to_int(body))[2:]
+
+    while len(encoded) % 8 != 0:
+
+        encoded = "0" + encoded
+
+    encoded = encoded[:-spare]
+
+    return retrieve_original(encoded, chars)
