@@ -85,6 +85,16 @@ def byte_codes(string):
             try:
 
                 if counts[key] < counts[smallest]:
+                    
+                    try:
+
+                        if counts[smallest] < counts[small]:
+
+                            small = smallest
+                
+                    except KeyError:
+
+                        small = smallest
 
                     smallest = key
 
@@ -105,6 +115,7 @@ def byte_codes(string):
         counts[smallest + small] = counts[smallest] + counts[small]
         counts.pop(smallest)
         counts.pop(small)
+
         if len(counts) != 1:
 
             codes[smallest] = (smallest+small, "0")
@@ -230,6 +241,7 @@ def write_file(name, compressed):
     header += dict_bytes
 
     value = int(compressed[0], 2)
+    print("HERE'S WHERE TO STOP")
     body = bytearray(divide_into_bytes(value, data_length, padding=spare))
 
     with open(write_path, "wb") as out:
@@ -270,6 +282,15 @@ def from_txt(read_path, name=None):
 def from_huf(read_path):
 
     text = read_huf(read_path)
+
+    write_path = read_path[:-4] + ".txt"
+
+    count = 0
+
+    while os.path.isfile(write_path):
+
+        write_path = read_path[:-4] + f"({count}).txt"
+        count += 1
 
     with open(read_path[:-3]+"txt", "w") as out:
 
